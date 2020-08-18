@@ -15,7 +15,7 @@ def markdown_to_tree(mardown_ast):
     raise NotImplementedError
 
 
-class MarkdownTransformer(lark.Tree):
+class MarkdownTransformer(lark.Transformer):
     """Convert MarkdownTree to SphinxNodeTree."""
     pass
 

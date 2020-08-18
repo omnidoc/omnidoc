@@ -12,7 +12,7 @@ def markdown_to_tree(mardown_ast):
     Returns:
         lark.Tree: Tree representation of markdown's AST.
     """
-    raise NotImplementedError
+    pass
 
 
 class MarkdownTransformer(lark.Transformer):

@@ -11,7 +11,8 @@ class TreeType(AbstractType):
     nodeset: frozenset
 
     def issubtype(self, t):
-        assert isinstance(t, TreeType), t
+        if not isinstance(t, TreeType):
+            return False
 
         return self.name == t.name and self.nodeset <= t.nodeset
 

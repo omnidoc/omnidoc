@@ -13,7 +13,7 @@ def _md_ast_children(markdown_ast):
 
 
 def markdown_to_tree(markdown_ast):
-    """Convert markdown AST to tree
+    """Convert markdown AST to Tree
 
     Args:
         markdown_ast (commonmark.node.Node): Parsed markdown AST. Usually
@@ -27,6 +27,23 @@ def markdown_to_tree(markdown_ast):
         children=[markdown_to_tree(child)
                   for child in _md_ast_children(markdown_ast)],
         source_obj=markdown_ast
+    )
+
+
+def docutils_to_tree(docutils_ast):
+    """Convert docutils AST to Tree
+
+    Args:
+        docutils_ast (docutils.nodes.Node): Docutils node to be converted to
+            Tree.
+
+    Returns:
+        Tree: Tree representation of docutils tree.
+    """
+    return Tree(
+        data=docutils_ast.tagname,
+        children=[docutils_to_tree(x) for x in docutils_ast.children],
+        source_obj=docutils_ast
     )
 
 

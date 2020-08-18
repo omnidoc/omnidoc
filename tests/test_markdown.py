@@ -1,5 +1,8 @@
-from commonmark import Parser
-from omnidoc.markdown import markdown_to_tree, _md_ast_children
+import commonmark
+import docutils.core
+
+from omnidoc.markdown import _md_ast_children, markdown_to_tree, \
+    docutils_to_tree 
 
 example_md = """
 # Heading 1
@@ -11,8 +14,20 @@ That is paragraph text.
 
 Also awesome *text*
 """
-parser = Parser()
-example_md_ast = parser.parse(example_md)
+example_md_ast = commonmark.Parser().parse(example_md)
+
+example_rst = """
+Heading 1
+=========
+
+That is paragraph text.
+
+Subsection
+----------
+
+Also awesome *text*
+"""
+example_docutils_ast = docutils.core.publish_doctree(example_rst)
 
 
 def test_md_ast_get_children():
@@ -28,5 +43,10 @@ def test_markdown_to_tree():
     # TODO: write test
 
 
+def test_docutils_to_tree():
+    tree = docutils_to_tree(example_docutils_ast)
+    print(tree.pretty())
+    # TODO: write test
+
 if __name__ == "__main__":
-    test_markdown_to_tree()
+    test_docutils_to_tree()

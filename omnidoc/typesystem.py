@@ -4,6 +4,7 @@ from dataclasses import dataclass
 class AbstractType:
     pass
 
+
 @dataclass
 class TreeType(AbstractType):
     name: str

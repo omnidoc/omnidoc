@@ -1,3 +1,9 @@
+"""Tree matcher based on Lark grammar
+
+TODO: Move to lark-parser, refactor reconstruct.py to use this as base class.
+"""
+
+
 from collections import defaultdict
 
 from lark.tree import Tree

@@ -1,3 +1,8 @@
+"""Tree validator based on Lark grammar
+
+TODO: Move to lark-parser
+"""
+
 from lark import UnexpectedToken
 
 from .lark_tree_matcher import TreeMatcher

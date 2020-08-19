@@ -3,28 +3,20 @@
 TODO: Move to lark-parser, refactor reconstruct.py to use this as base class.
 """
 
-
+import re
 from collections import defaultdict
 
-from lark.tree import Tree
+from lark import Tree, Token
 from lark.common import ParserConf
-from lark.lexer import Token
 from lark.parsers import earley
 from lark.grammar import Rule, Terminal, NonTerminal
 
 
-def is_discarded_terminal(t):
+def _is_discarded_terminal(t):
     return t.is_term and t.filter_out
 
-def is_iter_empty(i):
-    try:
-        _ = next(i)
-        return False
-    except StopIteration:
-        return True
 
-
-class MakeTreeMatch:
+class _MakeTreeMatch:
     def __init__(self, name, expansion):
         self.name = name
         self.expansion = expansion
@@ -35,7 +27,8 @@ class MakeTreeMatch:
         t.meta.orig_expansion = self.expansion
         return t
 
-def best_from_group(seq, group_key, cmp_key):
+
+def _best_from_group(seq, group_key, cmp_key):
     d = {}
     for item in seq:
         key = group_key(item)
@@ -48,6 +41,13 @@ def best_from_group(seq, group_key, cmp_key):
             d[key] = item
     return list(d.values())
 
+
+def _best_rules_from_group(rules):
+    rules = _best_from_group(rules, lambda r: r, lambda r: -len(r.expansion))
+    rules.sort(key=lambda r: len(r.expansion))
+    return rules
+
+
 def _match(term, token):
     if isinstance(token, Tree):
         name, _args = parse_rulename(term.name)
@@ -56,23 +56,35 @@ def _match(term, token):
         return term == Terminal(token.type)
     assert False
 
+
 def make_recons_rule(origin, expansion, old_expansion):
-    return Rule(origin, expansion, alias=MakeTreeMatch(origin.name, old_expansion))
+    return Rule(origin, expansion, alias=_MakeTreeMatch(origin.name, old_expansion))
+
 
 def make_recons_rule_to_term(origin, term):
     return make_recons_rule(origin, [Terminal(term.name)], [term])
 
-import re
+
 def parse_rulename(s):
-    name, args_str = re.match('(\w+)(?:{(.+)})?', s).groups()
+    "Parse rule names that may contain a template syntax (like rule{a, b, ...})"
+    name, args_str = re.match(r'(\w+)(?:{(.+)})?', s).groups()
     args = args_str and [a.strip() for a in args_str.split(',')]
     return name, args
 
+
 class TreeMatcher:
+    """Match the elements of a tree node, based on an ontology
+    provided by a Lark grammar.
+
+    Supports templates and inlined rules (`rule{a, b,..}` and `_rule`)
+
+    Initiialize with an instance of Lark.
+    """
+
     def __init__(self, parser):
         # XXX TODO calling compile twice returns different results!
         assert parser.options.maybe_placeholders == False
-        tokens, rules, _grammar_extra = parser.grammar.compile(parser.options.start)
+        _tokens, rules, _extra = parser.grammar.compile(parser.options.start)
 
         self.rules_for_root = defaultdict(list)
 
@@ -80,28 +92,28 @@ class TreeMatcher:
         self.rules.reverse()
 
         # Choose the best rule from each group of {rule => [rule.alias]}, since we only really need one derivation.
-        self.rules = best_from_group(self.rules, lambda r: r, lambda r: -len(r.expansion))
+        self.rules = _best_rules_from_group(self.rules)
 
-        self.rules.sort(key=lambda r: len(r.expansion))
         self.parser = parser
         self._parser_cache = {}
 
     def _build_recons_rules(self, rules):
+        "Convert tree-parsing/construction rules to tree-matching rules"
         expand1s = {r.origin for r in rules if r.options.expand1}
 
         aliases = defaultdict(list)
         for r in rules:
             if r.alias:
-                aliases[r.origin].append( r.alias )
+                aliases[r.origin].append(r.alias)
 
         rule_names = {r.origin for r in rules}
         nonterminals = {sym for sym in rule_names
-                        if sym.name.startswith('_') or sym in expand1s or sym in aliases }
+                        if sym.name.startswith('_') or sym in expand1s or sym in aliases}
 
         seen = set()
         for r in rules:
             recons_exp = [sym if sym in nonterminals else Terminal(sym.name)
-                          for sym in r.expansion if not is_discarded_terminal(sym)]
+                          for sym in r.expansion if not _is_discarded_terminal(sym)]
 
             # Skip self-recursive constructs
             if recons_exp == [r.origin] and r.alias is None:
@@ -128,6 +140,21 @@ class TreeMatcher:
             yield make_recons_rule_to_term(origin, origin)
 
     def match_tree(self, tree, rulename):
+        """Match the elements of `tree` to the symbols of rule `rulename`.
+
+        Args:
+            tree (Tree): the tree node to match
+            rulename ([type]): [description]
+
+        Returns:
+            Tree: an unreduced tree that matches `rulename`
+
+        Raises:
+            UnexpectedToken: If no match was found.
+
+        Note:
+            It's the callers' responsibility match the tree recursively.
+        """
         if rulename:
             # validate
             name, _args = parse_rulename(rulename)
@@ -139,16 +166,16 @@ class TreeMatcher:
         try:
             parser = self._parser_cache[rulename]
         except KeyError:
-            rules = self.rules + best_from_group(
-                self.rules_for_root[rulename], lambda r: r, lambda r: -len(r.expansion)
-            )
+            rules = self.rules + \
+                _best_rules_from_group(self.rules_for_root[rulename])
 
-            rules.sort(key=lambda r: len(r.expansion))
-
-            callbacks = {rule: rule.alias for rule in rules}  # TODO pass callbacks through dict, instead of alias?
-            parser = earley.Parser(ParserConf(rules, callbacks, [rulename]), _match, resolve_ambiguity=True)
+            # TODO pass callbacks through dict, instead of alias?
+            callbacks = {rule: rule.alias for rule in rules}
+            parser = earley.Parser(ParserConf(
+                rules, callbacks, [rulename]), _match, resolve_ambiguity=True)
             self._parser_cache[rulename] = parser
 
-        unreduced_tree = parser.parse(tree.children, rulename)   # find a full derivation
+        # find a full derivation
+        unreduced_tree = parser.parse(tree.children, rulename)
         assert unreduced_tree.data == rulename
         return unreduced_tree

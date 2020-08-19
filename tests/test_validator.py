@@ -14,10 +14,12 @@ paragraph{elem}: elem
 emph: text
 
 text:
-""" ) #, ambiguity='explicit')
+""")  # , ambiguity='explicit')
+
 
 def _swap_children(t, a, b):
     t.children[a], t.children[b] = t.children[b], t.children[a]
+
 
 def test_validate_templates():
     good_tree = p.parse('')

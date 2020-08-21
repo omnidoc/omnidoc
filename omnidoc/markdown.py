@@ -1,4 +1,5 @@
 import lark
+from docutils import nodes
 from .tree import Tree
 
 
@@ -52,10 +53,10 @@ class MarkdownTransformer(lark.Transformer):
     pass
 
 
-def tree_to_sphinx_node(tree):
-    """Convert tree representation to sphinx node API.
+def tree_to_docutils(tree):
+    """Convert tree representation to docutils node API.
 
     Args:
-        tree (lark.Tree): Tree represntation to sphinx node API.
+        tree (lark.Tree): Tree representation to sphinx node API.
     """
     raise NotImplementedError

@@ -2,7 +2,7 @@ import commonmark
 import docutils.core
 
 from omnidoc.markdown import _md_ast_children, markdown_to_tree, \
-    docutils_to_tree 
+    docutils_to_tree, tree_to_docutils
 
 example_md = """
 # Heading 1
@@ -48,5 +48,12 @@ def test_docutils_to_tree():
     print(tree.pretty())
     # TODO: write test
 
+
+def test_tree_to_docutils():
+    tree = docutils_to_tree(example_docutils_ast)
+    docutils_tree = tree_to_docutils(tree)
+    print(docutils_tree.pformat())
+    # TODO: write test
+
 if __name__ == "__main__":
-    test_docutils_to_tree()
+    test_tree_to_docutils()

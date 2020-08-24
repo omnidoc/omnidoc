@@ -1,5 +1,5 @@
 import lark
-from docutils import nodes
+import docutils.nodes
 from .tree import Tree
 
 
@@ -59,4 +59,15 @@ def tree_to_docutils(tree):
     Args:
         tree (lark.Tree): Tree representation to sphinx node API.
     """
-    raise NotImplementedError
+    if tree.data == 'document':
+        node = docutils.utils.new_document(source_path='/')
+    elif tree.data == '#text':
+        node = docutils.nodes.Text(data=tree.source_obj.rawsource)
+    else:
+        node_type = getattr(docutils.nodes, tree.data)
+        node = node_type()
+
+    for x in tree.children:
+        node.append(tree_to_docutils(x))
+
+    return node

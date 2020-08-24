@@ -52,7 +52,8 @@ def test_docutils_to_tree():
 def test_tree_to_docutils():
     tree = docutils_to_tree(example_docutils_ast)
     docutils_tree = tree_to_docutils(tree)
-    print(docutils_tree.pformat())
+    print('source:', example_docutils_ast.pformat())
+    print('output:', docutils_tree.pformat())
     # TODO: write test
 
 if __name__ == "__main__":

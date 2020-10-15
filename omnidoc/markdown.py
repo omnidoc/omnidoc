@@ -1,5 +1,6 @@
 import lark
 from .tree import Tree
+from docutils import utils, nodes
 
 
 def _md_ast_children(markdown_ast):
@@ -26,13 +27,27 @@ def markdown_to_tree(markdown_ast):
         data=markdown_ast.t,
         children=[markdown_to_tree(child)
                   for child in _md_ast_children(markdown_ast)],
-        source_obj=markdown_ast
+        source_obj=markdown_ast,
+        literal=markdown_ast.literal
     )
 
 
 class MarkdownTransformer(lark.Transformer):
-    """Convert MarkdownTree to SphinxNodeTree."""
-    pass
+    """Convert MarkdownTree to lark.Tree."""
+
+    def transform(self, tree):
+        y = super(MarkdownTransformer, self).transform(tree)
+        return Tree(y.data, [MarkdownTransformer().transform(child) for child in tree.children], literal=tree.literal, source_obj=tree.source_obj)
+
+    def heading(self, h):
+        return Tree('header', h)
+
+    def text(self, t):
+        return Tree('Text', t)
+
+    def paragraph(self, p):
+        return Tree('paragraph', p)
+
 
 
 def tree_to_sphinx_node(tree):
@@ -41,4 +56,16 @@ def tree_to_sphinx_node(tree):
     Args:
         tree (lark.Tree): Tree represntation to sphinx node API.
     """
-    raise NotImplementedError
+    if  tree.data == 'document':
+        node = utils.new_document(source_path='/')
+    elif tree.data == 'text':
+        node = nodes.Text(data=tree.literal)
+    else:
+        node_type = getattr(nodes, tree.data)
+        node = node_type(tree.literal)
+
+    for x in tree.children:
+        node.append(tree_to_sphinx_node(x))
+
+    return node
+    # raise NotImplementedError

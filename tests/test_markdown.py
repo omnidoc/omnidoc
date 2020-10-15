@@ -19,9 +19,8 @@ example_md_ast = parser.parse(example_md)
 def test_md_ast_get_children():
     children = _md_ast_children(example_md_ast)
     assert [x.t for x in children] == [
-        'paragraph'
+        'heading', 'paragraph', 'heading', 'paragraph'
     ]
-
 
 
 def test_markdown_to_tree():

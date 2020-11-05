@@ -1,6 +1,6 @@
 import lark
 from .tree import Tree
-
+from docutils import utils, nodes
 
 def _md_ast_children(markdown_ast):
     x = markdown_ast.first_child
@@ -21,19 +21,61 @@ def markdown_to_tree(markdown_ast):
 
     Returns:
         Tree: Tree representation of markdown's AST.
-    """
+    """    
     return Tree(
         data=markdown_ast.t,
         children=[markdown_to_tree(child)
                   for child in _md_ast_children(markdown_ast)],
-        source_obj=markdown_ast
+        source_obj=markdown_ast,
+        literal=markdown_ast.literal,
+        level=markdown_ast.level,
+        destination=markdown_ast.destination,
+        list_data=markdown_ast.list_data
     )
 
 
 class MarkdownTransformer(lark.Transformer):
-    """Convert MarkdownTree to SphinxNodeTree."""
-    pass
+    """Convert MarkdownTree to lark.Tree."""
 
+    def transform(self, tree):
+        self.list_data = tree.list_data
+        y = super(MarkdownTransformer, self).transform(tree)
+        return Tree(y.data, [MarkdownTransformer().transform(child) for child in tree.children], literal=tree.literal, 
+                    source_obj=tree.source_obj, level=tree.level, destination=tree.destination, list_data=tree.list_data)
+
+    def heading(self, child):
+        return Tree('header', child)
+
+    def text(self, child):
+        return Tree('Text', child)
+
+    def paragraph(self, child):
+        return Tree('paragraph', child)
+
+    def softbreak(self, child):
+        return Tree('line', child)
+
+    def emph(self, child):
+        return Tree('emphasis', child)
+    
+    def link(self, child):
+        return Tree('reference', child)
+    
+    def list(self, child):
+        if 'type' in self.list_data:
+            if self.list_data['type'] == 'bullet':
+                return Tree('bullet_list', child)
+            if self.list_data['type'] == 'ordered':
+                return Tree('enumerated_list', child)
+    
+    def item(self, child):
+        return Tree('list_item', child)
+    
+    def code(self, child):
+        return Tree('literal', child)
+    
+    def code_block(self, child):
+        return Tree('literal_block', child)
 
 def tree_to_sphinx_node(tree):
     """Convert tree representation to sphinx node API.
@@ -41,4 +83,22 @@ def tree_to_sphinx_node(tree):
     Args:
         tree (lark.Tree): Tree represntation to sphinx node API.
     """
-    raise NotImplementedError
+    if  tree.data == 'document':
+        node = utils.new_document(source_path='/')
+    elif tree.data == 'text':
+        node = nodes.Text(data=tree.literal)
+    elif tree.data == 'header':
+        node_type = getattr(nodes, tree.data)
+        node = node_type(tree.literal, level=tree.level)
+    elif tree.data == 'reference' or tree.data == 'image':
+        node_type = getattr(nodes, tree.data)        
+        node = node_type(tree.literal, src=tree.destination)
+    else:
+        node_type = getattr(nodes, tree.data)
+        node = node_type(tree.literal)
+
+    for x in tree.children:
+        node.append(tree_to_sphinx_node(x))
+
+    return node
+    # raise NotImplementedError

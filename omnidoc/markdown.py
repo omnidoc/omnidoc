@@ -1,4 +1,5 @@
 import lark
+import docutils.nodes
 from .tree import Tree
 
 
@@ -13,7 +14,7 @@ def _md_ast_children(markdown_ast):
 
 
 def markdown_to_tree(markdown_ast):
-    """Convert markdown AST to tree
+    """Convert markdown AST to Tree
 
     Args:
         markdown_ast (commonmark.node.Node): Parsed markdown AST. Usually
@@ -30,15 +31,43 @@ def markdown_to_tree(markdown_ast):
     )
 
 
+def docutils_to_tree(docutils_ast):
+    """Convert docutils AST to Tree
+
+    Args:
+        docutils_ast (docutils.nodes.Node): Docutils node to be converted to
+            Tree.
+
+    Returns:
+        Tree: Tree representation of docutils tree.
+    """
+    return Tree(
+        data=docutils_ast.tagname,
+        children=[docutils_to_tree(x) for x in docutils_ast.children],
+        source_obj=docutils_ast
+    )
+
+
 class MarkdownTransformer(lark.Transformer):
     """Convert MarkdownTree to SphinxNodeTree."""
     pass
 
 
-def tree_to_sphinx_node(tree):
-    """Convert tree representation to sphinx node API.
+def tree_to_docutils(tree):
+    """Convert tree representation to docutils node API.
 
     Args:
-        tree (lark.Tree): Tree represntation to sphinx node API.
+        tree (lark.Tree): Tree representation to sphinx node API.
     """
-    raise NotImplementedError
+    if tree.data == 'document':
+        node = docutils.utils.new_document(source_path='/')
+    elif tree.data == '#text':
+        node = docutils.nodes.Text(data=tree.source_obj.rawsource)
+    else:
+        node_type = getattr(docutils.nodes, tree.data)
+        node = node_type()
+
+    for x in tree.children:
+        node.append(tree_to_docutils(x))
+
+    return node
